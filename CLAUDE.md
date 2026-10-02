@@ -16,7 +16,7 @@ the entrance stagger, the margin pattern.
 - No new dependencies without asking. No CSS frameworks, no UI kits, no React.
 - Client JS stays limited to what exists: ClientRouter, Lenis, CustomCursor,
   PassionPattern, Shot's video controls.
-- Deployed on Vercel: `main` is production, every branch/PR gets a preview URL.
+- Deployed on Vercel: `main` is production, every other branch gets a preview URL.
 
 ## Commands
 
@@ -25,8 +25,11 @@ the entrance stagger, the margin pattern.
 - `npm run build` — build to `dist/`
 - `bash scripts/guard.sh` — never-publish check (run after build)
 
-Before opening a PR: `npm run check`, `npm run build`, `bash scripts/guard.sh`,
-all clean. Never push to `main`; work on a branch and open a PR.
+The owner is the only person working here and pushes straight to `main`, which
+deploys to production. So before every push to `main`: `npm run check`,
+`npm run build`, `bash scripts/guard.sh`, all clean. If a push breaks the live
+site, roll back with Vercel's Instant Rollback, then fix forward. For bigger or
+riskier changes, push a branch first and check its Vercel preview URL.
 
 ## Where things live
 
@@ -35,7 +38,7 @@ all clean. Never push to `main`; work on a branch and open a PR.
   described.
 - `src/content/projects/<slug>.mdx` — one file per project. Schema in
   `src/content.config.ts`: `group` (Products | Research), `order`, `featured`
-  (shown on the home page, keep it to four), `years`, `role`, `status`, `tech`,
+  (shown on the home page, keep it to four), `homeOrder` (position there), `years`, `role`, `status`, `tech`,
   `links`, `features`, `shots`.
 - `src/assets/projects/` — screenshots and recordings; see the README there.
   Every image needs real `alt` text. Videos: H.264 MP4, no audio, faststart,
@@ -67,9 +70,8 @@ source (the thesis, a benchmark CSV, the repo).
 
 `scripts/guard.sh` enforces part of this in CI; it does not replace judgment.
 
-## PR checklist
+## Before pushing
 
 - Links work (internal links are checked in CI; check external ones by hand).
 - Alt text on every new image.
 - Looks right at 375 px wide, in light and in dark.
-- Paste the Vercel preview URL in the PR description.

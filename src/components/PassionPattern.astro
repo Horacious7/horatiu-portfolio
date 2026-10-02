@@ -2,7 +2,7 @@
 /* A random procedural motif — one per passion — drawn into the empty band
    right of the text column, redrawn on each client-router navigation. Pure
    ornament: hidden from assistive tech and on narrow screens, never takes
-   the pointer. Force one with ?pattern=0..4. `wide` clears the timeline rail. */
+   the pointer. Force one with ?pattern=0..3. `wide` clears the timeline rail. */
 interface Props {
 	wide?: boolean;
 }
@@ -202,54 +202,6 @@ const { wide = false } = Astro.props;
     )
   }
 
-  /* ---- nature: two strands and their rungs, full height ---- */
-  function helix(w: number, h: number, r: Rand): string {
-    const cx = w * rf(r, 0.45, 0.55)
-    const amp = Math.min(w / 2 - 12, w * rf(r, 0.3, 0.42))
-    /* start above the top edge and run past the bottom so the strands'
-       meeting dots fall off the page — the helix reads as clipped */
-    const seg = amp * rf(r, 2.7, 3.4)
-    const y0 = -seg * rf(r, 0.2, 0.8)
-    const n = Math.ceil((h + seg * 0.25 - y0) / seg)
-    const strand = (dir: 1 | -1) => {
-      let d = `M${px(cx)} ${px(y0)}`
-      for (let i = 0; i < n; i++) {
-        const a = y0 + i * seg
-        const b = a + seg
-        const side = (i % 2 === 0 ? dir : -dir) * amp
-        d += `C${px(cx + side)} ${px(a + seg / 3)} ${px(cx + side)} ${px(b - seg / 3)} ${px(cx)} ${px(b)}`
-      }
-      return d
-    }
-    const all: { d: string; y: number }[] = []
-    for (let i = 0; i < n; i++) {
-      const a = y0 + i * seg
-      for (const t of [0.3, 0.5, 0.7]) {
-        const half = 3 * t * (1 - t) * amp
-        const y = a + seg * t
-        all.push({ d: `M${px(cx - half)} ${px(y)}H${px(cx + half)}`, y })
-      }
-    }
-    /* one or two rungs picked out in the accent color — only from rungs
-       actually on the page, since the ends are clipped */
-    const onPage = all.flatMap(({ y }, i) => (y > 4 && y < h - 4 ? [i] : []))
-    const marked = new Set<number>()
-    for (let k = ri(r, 1, 2); k > 0 && onPage.length; k--)
-      marked.add(onPage[ri(r, 0, onPage.length - 1)])
-    let rungs = ''
-    let acc = ''
-    all.forEach(({ d }, i) => {
-      if (marked.has(i)) acc += d
-      else rungs += d
-    })
-    return (
-      `<g fill="none" stroke="var(--hairline)" opacity="0.55"><path d="${rungs}"/></g>` +
-      `<g fill="none" stroke="var(--muted)" opacity="0.12">` +
-      `<path d="${strand(1)}"/><path d="${strand(-1)}"/></g>` +
-      `<g fill="none" stroke="var(--accent)" opacity="0.55"><path d="${acc}"/></g>`
-    )
-  }
-
   /* ---- the Universe: star field, one cluster, a small system ---- */
   function stars(w: number, h: number, r: Rand): string {
     let faint = ''
@@ -309,7 +261,7 @@ const { wide = false } = Astro.props;
         svg.setAttribute('width', `${w}`)
         svg.setAttribute('height', `${h}`)
         svg.setAttribute('viewBox', `0 0 ${w} ${h}`)
-        const generators = [circuits, labyrinth, mapGrid, helix, stars]
+        const generators = [circuits, labyrinth, mapGrid, stars]
         const forced = new URLSearchParams(location.search).get('pattern')
         const idx =
           forced !== null && +forced >= 0 && +forced < generators.length
