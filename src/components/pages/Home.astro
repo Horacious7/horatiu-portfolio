@@ -17,8 +17,20 @@ const projects = (await getProjects())
 
 <Base router>
   <header class="s" style="--i: 0">
-    <h1>{site.name}</h1>
-    <p class="role mono">{site.role}</p>
+    <div class="top">
+      <div>
+        <h1>{site.name}</h1>
+        <p class="role mono">{site.role}</p>
+      </div>
+      {
+        site.openToWork && (
+          <p class="status mono">
+            <span class="dot" aria-hidden="true" />
+            Open to remote work
+          </p>
+        )
+      }
+    </div>
     <p class="intro">
       I build data pipelines, and the products and tools around them.
       <br/>Based in Cluj-Napoca, Romania.
@@ -52,7 +64,6 @@ const projects = (await getProjects())
     <p>
       MSc in High Performance Computing and Big Data at Babeș-Bolyai
       University, after a BSc in Mathematics and Computer Science there in 2026.
-      {site.openToWork && " Open to remote work."}
     </p>
   </section>
 
@@ -105,6 +116,69 @@ const projects = (await getProjects())
 <style>
   .role {
     margin-top: 0.125rem;
+  }
+
+  /* ---- availability: the one live thing in the header ---- */
+
+  .top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.625rem 1.5rem;
+  }
+
+  .status {
+    --live: #2e9d6a;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .status {
+      --live: #56c2a8;
+    }
+  }
+
+  .dot {
+    position: relative;
+    flex: none;
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 50%;
+    background: var(--live);
+  }
+
+  /* A slow ring breathing out of the dot, like a status light. */
+  .dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--live);
+    animation: ping 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes ping {
+    0% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    70%,
+    100% {
+      transform: scale(3);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot::after {
+      animation: none;
+      opacity: 0;
+    }
   }
 
   header p.intro {
