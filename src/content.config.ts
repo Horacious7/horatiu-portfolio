@@ -72,6 +72,8 @@ const projects = defineCollection({
 				)
 				.optional(),
 			featured: z.boolean().optional(),
+			/* Position on the home page among featured projects, lowest first. */
+			homeOrder: z.number().optional(),
 			draft: z.boolean().optional(),
 		}),
 });

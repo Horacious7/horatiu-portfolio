@@ -7,7 +7,12 @@ import { getProjects, projectPath } from "../../data/projects";
 import { getPosts, postDateFmt, postPath } from "../../data/writing";
 
 const posts = (await getPosts()).slice(0, 3);
-const projects = (await getProjects()).filter((p) => p.data.featured);
+const projects = (await getProjects())
+  .filter((p) => p.data.featured)
+  .sort(
+    (a, b) =>
+      (a.data.homeOrder ?? Infinity) - (b.data.homeOrder ?? Infinity),
+  );
 ---
 
 <Base router>
