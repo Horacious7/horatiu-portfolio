@@ -4,8 +4,7 @@
    the CV opens in its own tab so it doesn't navigate away from the page. */
 type SiteLink = { label: string; href: string; newTab?: boolean };
 
-/* Flip these on once the X account and the English CV exist. */
-const showX = false;
+/* Flip this on once the English CV exists. */
 const showCV = false;
 
 export const site = {
@@ -17,8 +16,9 @@ export const site = {
 	description:
 		"Horațiu-Gabriel Maier is a data engineer in Cluj-Napoca, Romania, building data pipelines, full-stack products, and the tooling around them.",
 	openToWork: true,
+	xHandle: "horacious7",
 	links: [
-		...(showX ? [{ label: "X", href: "https://x.com/" }] : []),
+		{ label: "X", href: "https://x.com/horacious7" },
 		{ label: "GitHub", href: "https://github.com/Horacious7" },
 		{
 			label: "LinkedIn",

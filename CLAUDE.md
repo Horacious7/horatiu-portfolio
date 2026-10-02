@@ -33,7 +33,7 @@ riskier changes, push a branch first and check its Vercel preview URL.
 
 ## Where things live
 
-- `src/data/site.ts` — name, role, links, the `showX` / `showCV` flags, and the
+- `src/data/site.ts` — name, role, links, the X handle, the `showCV` flag, and the
   approved employer paragraph (`work`). This is the ONLY place the employer is
   described.
 - `src/content/projects/<slug>.mdx` — one file per project. Schema in
