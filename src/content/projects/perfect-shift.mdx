@@ -1,0 +1,49 @@
+---
+title: Perfect Shift
+description: A timing game about changing gear at exactly the right moment, styled like a car's dashboard. A proof of concept for in-car infotainment.
+group: Products
+order: 2
+years: "2026"
+role: Personal project, built alone
+status: Playable prototype
+tech: Unity 6 · C# · URP · Unity Test Framework
+featured: true
+homeOrder: 3
+features:
+  - title: Launch control
+    body: Every run starts on the line. Hold to rev and keep the needle inside a target band through a three-light countdown; a perfect launch, wheelspin or a false start sets the tone for the run.
+  - title: Shift on the needle
+    body: The tachometer needle sweeps back and forth and you tap to shift when it crosses the green zone. Every shift is rated Perfect, Good, Early, Late or Miss, and the rating decides how much speed you gain or lose.
+  - title: Corners
+    body: Every few seconds a corner comes up and you have under two seconds to downshift. Miss it and you lose speed and your combo.
+  - title: Two ways to play
+    body: Solo Survival is endless and gets faster the longer you last. Beat the AI is a 5 km race against a rival car, at five difficulty levels from Rookie to Legend.
+  - title: Combos and records
+    body: Chains of good shifts build a combo with escalating bonuses, and your best score, survival time, top speed and longest combo are kept between runs.
+---
+
+Perfect Shift is a small arcade game about one thing: changing gear at exactly
+the right moment. I designed and built it alone, as a personal project.
+
+It's styled like a car's dashboard: dark, minimal, a large tachometer in the
+middle, a few accent colours for the zones. That's deliberate. The idea is a
+proof of concept for something that could run on a car's infotainment screen
+while it's parked or charging, using the instrument everyone already reads.
+
+## How it plays
+
+A run starts with launch control, then the car climbs through five gears. The
+needle doesn't climb once per gear the way it would in a real car; it swings
+back and forth like a pendulum, and you tap when it's in the green. Perfect
+shifts close most of the gap to your top speed, sloppy ones cost you. Corners
+force a quick downshift. In Solo Survival the needle speeds up over time and
+three mistakes end the run; in Beat the AI you race a rival that also misses
+corners, more often at the easier levels.
+
+## How it's built
+
+It's Unity 6 with C#, around fifty scripts kept small and separate: the
+gearbox, the RPM model, shift evaluation, scoring, difficulty, corner events
+and the AI rival each live on their own. That separation is what made it
+testable. The game logic is covered by 110 edit-mode tests, so tuning a number
+like the size of the green zone doesn't quietly break the scoring.

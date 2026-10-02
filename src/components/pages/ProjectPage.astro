@@ -1,0 +1,270 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import PassionPattern from "../PassionPattern.astro";
+import PageNav from "../PageNav.astro";
+import Rail from "../Rail.astro";
+import Shot from "../Shot.astro";
+import { getProjectRail, projectPath } from "../../data/projects";
+
+interface Props {
+	project: CollectionEntry<"projects">;
+}
+
+const { project } = Astro.props;
+const { Content } = await render(project);
+const groups = await getProjectRail();
+
+const { years, role, status, tech, links, features, shots } = project.data;
+/* Shots without a src would render placeholder frames; skip them until the
+   real screenshots exist. */
+const [cover, ...rest] = (shots ?? []).filter((s) => s.src);
+---
+
+<Base
+  title={project.data.title}
+  description={project.data.description}
+  wide
+  router
+>
+  <PageNav href="/" label="← home" />
+  <div class="layout">
+    <article class="s-blocks">
+      <header>
+        <h1>{project.data.title}</h1>
+        <p class="lede">{project.data.description}</p>
+        <dl class="meta mono">
+          <div><dt>Years</dt><dd>{years}</dd></div>
+          <div><dt>Role</dt><dd>{role}</dd></div>
+          <div><dt>Status</dt><dd>{status}</dd></div>
+        </dl>
+      </header>
+
+      {cover && <Shot {...cover} eager />}
+
+      <div class="prose">
+        <Content />
+      </div>
+
+      <section class="features">
+        <h2>What it does</h2>
+        <ul role="list">
+          {
+            features.map((f) => (
+              <li>
+                <strong>{f.title}</strong>
+                <span>{f.body}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+
+      {
+        rest.length > 0 && (
+          <section class="shots">
+            {rest.map((s) => (
+              <Shot {...s} />
+            ))}
+          </section>
+        )
+      }
+
+      <section class="built">
+        <h2>Built with</h2>
+        <p class="mono">{tech}</p>
+        {
+          links && links.length > 0 && (
+            <ul class="links mono" role="list">
+              {links.map((l) => {
+                const newTab = l.newTab || l.href.startsWith("http");
+                return (
+                  <li>
+                    <a
+                      href={l.href}
+                      target={newTab ? "_blank" : undefined}
+                      rel={newTab ? "noopener" : undefined}
+                    >
+                      {l.label}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        }
+      </section>
+    </article>
+    <aside transition:name="rail" transition:persist="rail">
+      <Rail
+        groups={groups}
+        current={projectPath(project.id)}
+        label="All projects"
+      />
+    </aside>
+  </div>
+  <PassionPattern wide />
+</Base>
+
+<style>
+  /* Article first in the DOM so keyboard users reach it before the rail;
+     the grid places the rail to its left. The aside is transition:persist,
+     so select it through the fresh .layout parent — after a navigation it
+     carries the previous page's scope attribute. */
+  .layout {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 65ch);
+    gap: 3.5rem;
+    align-items: start;
+  }
+
+  article {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .layout > :global(aside) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+
+    article {
+      grid-column: 1;
+    }
+
+    .layout > :global(aside) {
+      grid-row: 2;
+    }
+  }
+
+  article h1 {
+    font-size: 1.25rem;
+    letter-spacing: -0.014em;
+  }
+
+  .lede {
+    margin-top: 0.5rem;
+    color: var(--muted);
+  }
+
+  /* The facts a client checks first, as a spec strip under the title. */
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+    margin-top: 1.125rem;
+  }
+
+  .meta dt {
+    color: var(--muted);
+    opacity: 0.7;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: lowercase;
+  }
+
+  .meta dd {
+    margin: 0;
+    color: var(--text);
+  }
+
+  .prose {
+    margin-top: 1.75rem;
+  }
+
+  .prose :global(p),
+  .prose :global(ul),
+  .prose :global(ol),
+  .prose :global(pre),
+  .prose :global(blockquote) {
+    margin-top: 1.125rem;
+  }
+
+  .prose :global(h2),
+  .prose :global(h3) {
+    margin-top: 2rem;
+  }
+
+  .prose :global(blockquote) {
+    border-left: 2px solid var(--hairline);
+    padding-left: 1.125rem;
+    color: var(--muted);
+  }
+
+  section {
+    margin-top: 2.75rem;
+  }
+
+  section ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  /* Each feature taps off the section the way a pad taps off the rail. */
+  .features ul {
+    margin-top: 1rem;
+  }
+
+  .features li {
+    padding-left: 1.125rem;
+    position: relative;
+  }
+
+  .features li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.8125em;
+    width: 7px;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  .features li + li {
+    margin-top: 0.875rem;
+  }
+
+  /* Title over body, the way the rail stacks a title over its meta. */
+  .features strong {
+    display: block;
+    font-weight: 600;
+  }
+
+  .features span {
+    display: block;
+    margin-top: 0.125rem;
+    color: var(--muted);
+  }
+
+  .shots {
+    /* Shot brings its own top margin; don't double it. */
+    margin-top: 1rem;
+  }
+
+  .built p {
+    margin-top: 0.75rem;
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 0.875rem;
+  }
+
+  .links a {
+    color: var(--muted);
+  }
+
+  .links a:hover {
+    color: var(--accent);
+  }
+</style>

@@ -1,0 +1,66 @@
+---
+import Base from "../../layouts/Base.astro";
+import PassionPattern from "../PassionPattern.astro";
+import PageNav from "../PageNav.astro";
+import Rail from "../Rail.astro";
+import { getWritingRail } from "../../data/writing";
+
+const groups = await getWritingRail();
+---
+
+<Base title="Writing" description="Notes by Horațiu-Gabriel Maier on data engineering and the projects behind them." wide router>
+  <PageNav href="/" label="← home" />
+  {
+    groups.length > 0 ? (
+      <div class="layout">
+        <aside transition:name="timeline" transition:persist="timeline">
+          <Rail groups={groups} label="All posts" />
+        </aside>
+        <div class="blurb s" style="--i: 1">
+          <h1>Writing</h1>
+          <p>
+            This is my blog — notes on software and life. Pick a post from the
+            timeline to start reading.
+          </p>
+        </div>
+      </div>
+    ) : (
+      <p class="empty s" style="--i: 0">
+        Nothing here yet. Subscribe to the <a href="/rss.xml">RSS feed</a> to
+        catch the first post.
+      </p>
+    )
+  }
+  <PassionPattern wide />
+</Base>
+
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 65ch);
+    gap: 3.5rem;
+    align-items: start;
+  }
+
+  .blurb p {
+    margin-top: 0.875rem;
+    color: var(--muted);
+  }
+
+  .empty {
+    color: var(--muted);
+  }
+
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+
+    /* The aside is transition:persist, so select it through the fresh
+       .layout parent — it carries the previous page's scope after navigation. */
+    .layout > :global(aside) {
+      order: 2;
+    }
+  }
+</style>

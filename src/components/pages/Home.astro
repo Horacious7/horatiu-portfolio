@@ -1,0 +1,220 @@
+---
+/* The homepage content. */
+import Base from "../../layouts/Base.astro";
+import PassionPattern from "../PassionPattern.astro";
+import { site } from "../../data/site";
+import { getProjects, projectPath } from "../../data/projects";
+import { getPosts, postDateFmt, postPath } from "../../data/writing";
+
+const posts = (await getPosts()).slice(0, 3);
+const projects = (await getProjects())
+  .filter((p) => p.data.featured)
+  .sort(
+    (a, b) =>
+      (a.data.homeOrder ?? Infinity) - (b.data.homeOrder ?? Infinity),
+  );
+---
+
+<Base router>
+  <header class="s" style="--i: 0">
+    <h1>{site.name}</h1>
+    <p class="role mono">{site.role}</p>
+    <p class="intro">
+      I build data pipelines, and the products and tools around them.
+      <br/>Based in Cluj-Napoca, Romania.
+    </p>
+    <ul class="links mono" role="list">
+      {
+        site.links.map((l) => {
+          const newTab = l.newTab || l.href.startsWith("http");
+          return (
+            <li>
+              <a
+                href={l.href}
+                target={newTab ? "_blank" : undefined}
+                rel={newTab ? "noopener" : undefined}
+              >
+                {l.label}
+              </a>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </header>
+
+  <section class="s experience" style="--i: 1" aria-label="Background">
+    {site.work.map((paragraph) => <p>{paragraph}</p>)}
+  </section>
+
+  <section class="s" style="--i: 2" aria-labelledby="now">
+    <h2 id="now">Now</h2>
+    <p>
+      MSc in High Performance Computing and Big Data at Babeș-Bolyai
+      University, after a BSc in Mathematics and Computer Science there in 2026.
+      {site.openToWork && " Open to remote work."}
+    </p>
+  </section>
+
+  <section class="s" style="--i: 3" aria-labelledby="projects">
+    <h2 id="projects">Selected projects</h2>
+    <ul role="list">
+      {
+        projects.map((p) => (
+          <li class="project">
+            <h3>
+              <a href={projectPath(p.id)}>{p.data.title}</a>
+              <span class="mono tech">{p.data.tech}</span>
+            </h3>
+            <p>{p.data.description}</p>
+          </li>
+        ))
+      }
+    </ul>
+    <p class="all">
+      <a href="/projects/">
+        All projects <span class="arrow">→</span>
+      </a>
+    </p>
+  </section>
+
+  {
+    posts.length > 0 && (
+      <section class="s" style="--i: 4" aria-labelledby="writing">
+        <h2 id="writing">Writing</h2>
+        <ul role="list">
+          {posts.map((post) => (
+            <li class="post">
+              <a href={postPath(post.id)}>{post.data.title}</a>
+              <span class="mono">{postDateFmt.format(post.data.date)}</span>
+            </li>
+          ))}
+        </ul>
+        <p class="all">
+          <a href="/writing/">
+            All writing <span class="arrow">→</span>
+          </a>
+        </p>
+      </section>
+    )
+  }
+
+  <PassionPattern />
+</Base>
+
+<style>
+  .role {
+    margin-top: 0.125rem;
+  }
+
+  header p.intro {
+    margin-top: 1.25rem;
+  }
+
+  .links {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .links a {
+    color: var(--muted);
+  }
+
+  .links a:hover {
+    color: var(--accent);
+  }
+
+  @media (max-width: 480px) {
+    .links {
+      gap: 0.5rem 1rem;
+    }
+  }
+
+  section {
+    margin-top: 3.5rem;
+  }
+
+  section > p,
+  section > ul {
+    margin-top: 0.875rem;
+  }
+
+  section ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .project {
+    margin: 0 -0.875rem;
+    padding: 0.875rem;
+    border-radius: 8px;
+  }
+
+  .project + .project {
+    margin-top: 0.25rem;
+  }
+
+  .project h3 {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .project h3 a {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .project p {
+    color: var(--muted);
+    margin-top: 0.25rem;
+    font-size: 0.9375rem;
+  }
+
+  .experience > p:first-child {
+    margin-top: 0;
+  }
+
+  .experience p + p {
+    margin-top: 0.875rem;
+  }
+
+  .post {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .post + .post {
+    margin-top: 0.5rem;
+  }
+
+  .post .mono {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 480px) {
+    .post {
+      display: block;
+    }
+
+    .post .mono {
+      display: block;
+      margin-top: 0.125rem;
+    }
+  }
+
+  .all {
+    color: var(--muted);
+  }
+
+  .all {
+    margin-top: 0.875rem;
+  }
+</style>

@@ -1,0 +1,29 @@
+---
+/* The back link shown above every page below the homepage. */
+
+interface Props {
+	href: string;
+	label: string;
+}
+
+const { href, label } = Astro.props;
+---
+
+<div class="nav mono" transition:name="nav">
+  <p class="back"><a href={href}>{label}</a></p>
+</div>
+
+<style>
+  .nav {
+    margin-bottom: 2.5rem;
+  }
+
+  .back a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  .back a:hover {
+    color: var(--accent);
+  }
+</style>

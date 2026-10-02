@@ -1,0 +1,369 @@
+/* ------------------------------------------------------------------ */
+/*  horatiu-portfolio — hand-written, no frameworks                     */
+/* ------------------------------------------------------------------ */
+
+:root {
+	color-scheme: light dark;
+
+	--bg: #fbfaf8;
+	--text: #1d1c1a;
+	--muted: #6b6863;
+	--faint: #eceae4;
+	--hairline: #e4e1da;
+	--accent: #d97757;
+
+	/* Astro builds these: the family followed by metric-matched fallback
+	   faces, so text occupies identical space before and after the swap.
+	   Don't append fallbacks here — that would append them after the
+	   generic that terminates the chain, where they'd never be reached. */
+	--font-sans: var(--font-inter);
+	--font-mono: var(--font-meslo);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #151413;
+		--text: #e7e5e0;
+		--muted: #8f8c85;
+		--faint: #24221e;
+		--hairline: #2c2a25;
+		--accent: #56c2a8;
+	}
+}
+
+/* ---- reset ---- */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+}
+
+html {
+	/* On the root element so navigation snapshots never composite
+     against the browser's default white canvas. */
+	background: var(--bg);
+	-webkit-text-size-adjust: 100%;
+	scrollbar-gutter: stable;
+}
+
+body {
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-sans);
+	font-size: 1rem;
+	line-height: 1.75;
+	font-feature-settings:
+		"ss03" 1,
+		"cv05" 1; /* Inter: rounded quotes, open l */
+	-webkit-font-smoothing: antialiased;
+}
+
+img,
+video {
+	max-width: 100%;
+	height: auto;
+}
+
+/* ---- the column: anchored left of center ---- */
+
+main {
+	max-width: 65ch;
+	margin-left: clamp(1.5rem, 16vw, 18rem);
+	margin-right: 1.5rem;
+	padding-block: clamp(3.5rem, 9vh, 6.5rem) 5rem;
+}
+
+/* Writing pages: room for the timeline rail beside the post column. */
+main.wide {
+	max-width: calc(15rem + 3.5rem + 65ch);
+}
+
+@media (max-width: 900px) {
+	main {
+		margin-inline: 2.5rem;
+	}
+}
+
+/* ---- type ---- */
+
+h1 {
+	font-size: 1.0625rem;
+	font-weight: 600;
+	letter-spacing: -0.011em;
+}
+
+h2 {
+	font-size: 1rem;
+	font-weight: 600;
+	letter-spacing: -0.011em;
+}
+
+h3 {
+	font-size: 1rem;
+	font-weight: 550;
+}
+
+p {
+	letter-spacing: -0.006em;
+}
+
+strong {
+	font-weight: 600;
+}
+
+.mono {
+	font-family: var(--font-mono);
+	font-size: 0.8125rem;
+	letter-spacing: 0;
+	color: var(--muted);
+}
+
+/* Inter draws no ← or →, so arrows in sans text borrow the mono. Its x-height
+   is within 0.2% of Inter's, so only the glyph changes. */
+.arrow {
+	font-family: var(--font-mono);
+}
+
+/* ---- links ---- */
+
+a {
+	color: var(--text);
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+	text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+	transition:
+		text-decoration-color 150ms ease,
+		color 150ms ease;
+}
+
+a:hover {
+	color: var(--accent);
+	text-decoration-color: var(--accent);
+}
+
+a:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 3px;
+	border-radius: 2px;
+}
+
+::selection {
+	background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* ---- view transitions (writing pages use Astro's ClientRouter) ---- */
+
+/* One stable name for the root on every page. Astro's scope id differs
+   between pages, and unpaired old/new root groups fall back to the UA's
+   250ms crossfade — the compounding flash transition:animate="none" was
+   meant to prevent. Paired and de-animated, the swap is truly instant and
+   the entrance stagger below is the whole transition. */
+html[data-astro-transition-scope] {
+	view-transition-name: page;
+}
+
+::view-transition-group(page),
+::view-transition-old(page),
+::view-transition-new(page) {
+	animation: none;
+}
+
+/* Below 900px the rail sits under the article, so its named group would
+   streak off-screen on long posts — let it crossfade with the page. */
+@media (max-width: 900px) {
+	aside[data-astro-transition-scope] {
+		view-transition-name: none !important;
+	}
+}
+
+/* The rail, timeline, and back-link groups are de-animated wholesale. Any
+   animation here would hold the transition open for its whole run, and
+   while it is open every frame renders through the snapshot tree instead
+   of the page — the entrance stagger visibly hitches mid-fade. A rail or
+   back-link row arriving on a page still enters like any other block, but
+   on its real element: Base.astro marks it `entering` (see below). */
+::view-transition-group(rail),
+::view-transition-old(rail),
+::view-transition-new(rail),
+::view-transition-group(timeline),
+::view-transition-old(timeline),
+::view-transition-new(timeline),
+::view-transition-group(nav),
+::view-transition-old(nav),
+::view-transition-new(nav) {
+	animation: none;
+}
+
+/* The pseudo tree still paints for the frame or two before the transition
+   finishes, and these elements have no background of their own — an
+   outgoing back-link label ("acasă") would show through behind the
+   incoming one ("home"). Hide the old snapshots outright: only the new
+   state is ever painted, and the swap reads as truly instant. */
+::view-transition-old(rail),
+::view-transition-old(timeline),
+::view-transition-old(nav) {
+	opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
+	}
+}
+
+/* ---- entrance stagger (once, fast, subtle) ---- */
+
+@keyframes enter {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* `.s` fades one element; `.s-blocks` fades an element's blocks, so a page-tall
+   article never becomes one page-tall compositing layer. Children inherit --i,
+   so they share a delay and still read as a single fade. `.prose` gives way to
+   its own children — on a long post the prose is the whole article. */
+.s,
+.s-blocks > *:not(.prose),
+.s-blocks > .prose > * {
+	animation: enter 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
+	animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* Article pages stagger their blocks by DOM position, so a conditional
+   block (a project without a cover, say) never leaves a hole in the
+   cascade. Blocks start at 1, leaving slot 0 under the back-link row
+   (which fades on its own — see `.nav` below); blocks past the sixth
+   share a delay — that far down is below the fold. */
+.s-blocks > :nth-child(1) {
+	--i: 1;
+}
+.s-blocks > :nth-child(2) {
+	--i: 2;
+}
+.s-blocks > :nth-child(3) {
+	--i: 3;
+}
+.s-blocks > :nth-child(4) {
+	--i: 4;
+}
+.s-blocks > :nth-child(5) {
+	--i: 5;
+}
+.s-blocks > :nth-child(n + 6) {
+	--i: 6;
+}
+
+/* Held at the first frame until Base.astro drops the attribute. `both` covers
+   the delay, so this reads as opacity 0 rather than as a pause. Client-side
+   navigations never see it: Astro rewrites the <html> attributes from the
+   incoming page, which has none. */
+:root[data-loading] .s,
+:root[data-loading] .s-blocks > *:not(.prose),
+:root[data-loading] .s-blocks > .prose > * {
+	animation-play-state: paused;
+}
+
+/* The rail is transition:persist, so it takes a transition rather than `.s`:
+   an animation would re-run whenever a swap re-inserts the node. This only
+   plays when opacity changes, which is once, on first load. The back-link
+   row takes the same route for the same reason — an `.s` animation would
+   re-fade it on every swap. */
+aside[data-astro-transition-persist],
+.nav {
+	transition: opacity 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98);
+}
+
+:root[data-loading] aside[data-astro-transition-persist],
+:root[data-loading] .nav {
+	opacity: 0;
+}
+
+/* A rail or back-link row arriving via the client router (entry from a
+   page without one) enters like any other block — same keyframes, same
+   curve. Base.astro sets the class on arrival and strips it before the
+   next swap, so re-inserting a persisted node never replays the fade. */
+aside[data-astro-transition-persist].entering,
+.nav.entering {
+	animation: enter 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.s,
+	.s-blocks > *:not(.prose),
+	.s-blocks > .prose > * {
+		animation: none;
+	}
+
+	aside[data-astro-transition-persist],
+	.nav {
+		transition: none;
+	}
+
+	aside[data-astro-transition-persist].entering,
+	.nav.entering {
+		animation: none;
+	}
+
+	/* No animation left to hold, so hold the content itself — otherwise
+	   reduced motion opts out of the font gate and back into the flash. */
+	:root[data-loading] .s,
+	:root[data-loading] .s-blocks > *:not(.prose),
+	:root[data-loading] .s-blocks > .prose > *,
+	:root[data-loading] aside[data-astro-transition-persist],
+	:root[data-loading] .nav {
+		opacity: 0;
+	}
+}
+
+/* ---- code ---- */
+
+code {
+	font-family: var(--font-mono);
+	font-size: 0.85em;
+}
+
+:not(pre) > code {
+	background: var(--faint);
+	padding: 0.1em 0.35em;
+	border-radius: 4px;
+}
+
+.astro-code {
+	padding: 1rem 1.25rem;
+	border-radius: 6px;
+	border: 1px solid var(--hairline);
+	overflow-x: auto;
+	line-height: 1.6;
+	font-size: 0.8125rem;
+	/* Site surface instead of vitesse-light's pure white; the dark
+     media query below restores the theme background in dark mode. */
+	background: var(--faint);
+}
+
+.astro-code,
+.astro-code span {
+	color: var(--shiki-light) !important;
+	font-style: var(--shiki-light-font-style) !important;
+	font-weight: var(--shiki-light-font-weight) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+	.astro-code,
+	.astro-code span {
+		color: var(--shiki-dark) !important;
+		background-color: var(--shiki-dark-bg) !important;
+		font-style: var(--shiki-dark-font-style) !important;
+		font-weight: var(--shiki-dark-font-weight) !important;
+	}
+}

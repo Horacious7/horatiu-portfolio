@@ -1,0 +1,109 @@
+---
+title: TRACE
+description: Hides an RSA-2048 signature inside an image, invisibly, and later proves whether that image was changed. My bachelor's thesis.
+group: Research
+order: 1
+years: "2025–2026"
+role: Bachelor's thesis, built alone
+status: Thesis, Babeș-Bolyai University, 2026
+tech: Python · Flask · PyWavelets · OpenCV · NumPy · React · TypeScript
+featured: true
+homeOrder: 1
+links:
+  - label: source
+    href: https://github.com/Horacious7/digital_watermarking_project
+shots:
+  - src: ../../assets/projects/trace-embed.png
+    alt: The TRACE embed screen with a key pair loaded and a sunset landscape image selected for signing.
+    caption: Signing an image. The key pair is loaded for this session only, and the image is ready to embed.
+  - src: ../../assets/projects/trace-verify-valid.png
+    alt: The verify screen showing Signature Valid, the extracted message, a 256-byte signature and an auto-detected 8 by 8 block size.
+    caption: Verifying the signed copy. The message comes back out, the signature checks, and the block size is detected on its own.
+  - src: ../../assets/projects/trace-verify-tampered.png
+    alt: The same image with a small second sun painted into the sky, and the verify screen showing Signature Invalid.
+    caption: The same image after a small edit, a second sun painted into the sky. The message still reads, but the signature no longer matches.
+features:
+  - title: Sign an image without changing how it looks
+    body: The signature goes into the frequency domain of the picture rather than its metadata, so it survives being copied around and nobody can strip it off by editing a header.
+  - title: Verify blind
+    body: Checking an image needs only the image and the signer's public key. The block size used when signing is detected automatically, so there is nothing else to keep track of.
+  - title: Tells you when an image was tampered with
+    body: Change a region of a signed image and the signature no longer checks out against the content it was made from.
+  - title: Know the capacity before you sign
+    body: A capacity calculator shows whether an image has enough blocks to carry the signature and message, before any work is done.
+  - title: Batch work
+    body: Sign or verify many images in one go, with each one checked automatically after it is signed.
+  - title: Keeps nothing
+    body: There is no database. Uploaded images are written to temporary files that are deleted after each response, and keys are never stored.
+---
+
+import TraceChart from "../../components/TraceChart.astro";
+
+TRACE is my bachelor's thesis at Babeș-Bolyai University, supervised by
+Prof. dr. Septimiu Crivei. The question behind it: if an image is going to be
+passed around, how can you prove later that it is the one you published, and
+that nobody changed it on the way?
+
+A signature in the file's metadata doesn't answer that, because metadata is the
+first thing an edit throws away. So TRACE writes the signature into the image
+itself. You sign with your private key, and the signature is hidden in the
+picture's frequency domain, too small a change for the eye to see. Anyone with
+your public key can later read it back out and check it against the pixels.
+
+## How it works
+
+The image's blue channel goes through a one-level Haar wavelet transform. The
+low-frequency part that comes out is split into small blocks, each block goes
+through a discrete cosine transform, and one bit of the payload is written into
+a mid-frequency coefficient of each block. Mid-frequency is the compromise: low
+frequencies would show, high frequencies are the first thing compression
+throws away.
+
+The payload carries a small header with the block size, the signature length,
+the 256-byte RSA-PSS signature itself, the message, and a terminator. Because
+the block size is in the header, verifying needs nothing but the image and the
+public key.
+
+## What I found
+
+The first version failed more often than it should have. In the benchmark,
+114 of 396 valid cases came back with an invalid signature, even though nothing
+had touched the image. The cause turned out to be the wavelet transform: when an
+image's sides aren't a multiple of the block grid, the transform pads the edges,
+and that padding shifted the embedded bits just enough to break the signature.
+
+My fix, which the thesis calls Resonance Optimization, crops the image to a
+multiple of twice the block size before the transform, so there is no padding
+to go wrong. With it, those 114 failures went to 0: every case where the
+message fit in the image produced a valid signature, 396 out of 396, against
+282 out of 396 without it. It also made embedding faster, because the fallback
+that used to retry around the margins was no longer needed: 0.21 s per image on
+average instead of 0.36 s, and 0.73 s instead of 2.67 s in the slowest case.
+Average image quality stayed around 35 dB PSNR either way.
+
+<TraceChart />
+
+The benchmark behind those numbers ran 15 synthetic images across 17 block
+sizes, with and without the optimization, three times each: 1,530 runs in all.
+The other failures in it are images too small to carry the payload at large
+block sizes, and those fail the same way in both modes.
+
+## Choices I'd defend
+
+- **No SVD.** Many watermarking papers use singular value decomposition, but it
+  has a known flaw where a forged watermark can still pass as the owner's. I
+  left it out on purpose.
+- **RSA-2048 over elliptic curves.** It's what web PKI already speaks, so the
+  keys work with existing tools.
+- **No database at all.** The server keeps nothing between requests, which
+  makes privacy a property of the design rather than a promise.
+
+## Limits
+
+It works on lossless images only: PNG and BMP. JPEG compression destroys the
+payload, and so does cropping, rotating or scaling a signed image. The
+signature and header need roughly 2,128 blocks, which rules out very small
+images.
+
+I used AI assistants for parts of the code and the drafting, as the thesis
+declares. The design, the algorithm, and the verification are mine.

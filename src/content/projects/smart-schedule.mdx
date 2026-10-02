@@ -1,0 +1,60 @@
+---
+title: Smart Schedule
+description: The UBB Computer Science timetable, scraped from the faculty site and turned into a personal calendar that updates itself when the schedule changes.
+group: Products
+order: 3
+years: "2025–present"
+role: Backend lead, team of eight
+status: In use by UBB students, handed on to younger teams
+tech: TypeScript · Node.js · Express · MongoDB · Flutter
+featured: true
+homeOrder: 4
+links:
+  - label: source
+    href: https://github.com/proiect-colectiv-832/smart-schedule-ubb
+features:
+  - title: Your timetable, not the whole faculty's
+    body: Pick your field, year and group, or a teacher, and see just that schedule. Add optional subjects and build one personal timetable out of them.
+  - title: Lives in your own calendar
+    body: Subscribe once and the timetable shows up in Google Calendar or Apple Calendar, with odd and even weeks handled correctly and the holidays left out.
+  - title: Knows when the schedule changes
+    body: Every morning the server compares the faculty's published timetables with what each student saved, raises a notification when something moved, and regenerates their calendar.
+  - title: Rooms you can find
+    body: Classes carry their building and room, so a first-year can find the lecture hall.
+---
+
+Smart Schedule started as a team project at Babeș-Bolyai University. The
+faculty publishes its timetables as a set of HTML tables, one per group, and
+every student ends up copying their own into a calendar by hand, then checking
+back in case something moved.
+
+We built an app that does that for them. You choose your group, add your
+optional subjects, and subscribe once. The schedule appears in whatever calendar
+app you already use, and it keeps itself up to date.
+
+## What I built
+
+I led the backend. The core of it is mine: the data model for timetables,
+groups and teachers, the scrapers and parsers that read the faculty's HTML, the
+cache that keeps the app fast without hammering the faculty's server, and moving
+the whole server into shape for deployment. Later I fixed the parts of a
+calendar that are easy to get wrong: odd and even teaching weeks, final-year
+students whose semester ends early, and the holidays, all with tests.
+
+The Flutter app, the notifications and the CI pipelines came from teammates.
+Eight of us contributed in total.
+
+## How it works
+
+The backend is Node.js and TypeScript on Express. It scrapes the faculty's
+timetable pages and academic calendar, parses them into structured data, and
+caches the result, with an endpoint to refresh it on demand. Each student's
+timetable is stored in MongoDB and rendered into a personal iCalendar feed that
+calendar apps subscribe to. A scheduled job runs every morning at six, diffs the
+fresh timetables against what students saved, and updates whatever changed.
+
+## Where it stands
+
+The backend runs in production and students use it, and the faculty's
+Vice-Dean recognised the project. I still contribute, and it has been handed on
+to younger students at the faculty to keep it going.
