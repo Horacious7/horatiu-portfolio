@@ -11,6 +11,16 @@ featured: true
 links:
   - label: source
     href: https://github.com/Horacious7/digital_watermarking_project
+shots:
+  - src: ../../assets/projects/trace-embed.png
+    alt: The TRACE embed screen with a key pair loaded and a sunset landscape image selected for signing.
+    caption: Signing an image. The key pair is loaded for this session only, and the image is ready to embed.
+  - src: ../../assets/projects/trace-verify-valid.png
+    alt: The verify screen showing Signature Valid, the extracted message, a 256-byte signature and an auto-detected 8 by 8 block size.
+    caption: Verifying the signed copy. The message comes back out, the signature checks, and the block size is detected on its own.
+  - src: ../../assets/projects/trace-verify-tampered.png
+    alt: The same image with a small second sun painted into the sky, and the verify screen showing Signature Invalid.
+    caption: The same image after a small edit, a second sun painted into the sky. The message still reads, but the signature no longer matches.
 features:
   - title: Sign an image without changing how it looks
     body: The signature goes into the frequency domain of the picture rather than its metadata, so it survives being copied around and nobody can strip it off by editing a header.
