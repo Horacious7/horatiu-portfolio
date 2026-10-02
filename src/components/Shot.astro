@@ -1,0 +1,275 @@
+---
+/* A screenshot or screen recording in its frame. With no `src` it renders a
+   placeholder of the same shape, so the page reads correctly before the real
+   image exists — drop the file into src/assets/projects/ and point `src` at it.
+
+   `src` is an ImageMetadata, resolved by `image()` in the collection schema.
+   Image writes the real width/height onto the tag, which is what reserves the
+   frame's height before the bytes arrive.
+
+   With a `video`, `src` is its poster and lends the <video> its dimensions.
+   The .mp4 is resolved from src/assets/projects/ at build time, so a typo
+   fails the build, and it ships under a content hash in /_astro/, where the
+   worker lets browsers cache it for good.
+
+   `srcDark` and `videoDark` are the same shot for dark mode, for media that
+   has a theme of its own (a terminal, a chart). The browser picks between them
+   by prefers-color-scheme and fetches only the one it shows. A poster can't
+   carry a media query, so a themed recording keeps both in data attributes
+   and Base.astro sets the right one before the page is revealed. */
+import { Image, getImage } from "astro:assets";
+
+interface Props {
+	src?: ImageMetadata;
+	srcDark?: ImageMetadata;
+	video?: string;
+	videoDark?: string;
+	alt?: string;
+	caption: string;
+	/* The cover sits above the fold, so it goes first in the queue. Nothing
+	   waits to be scrolled to: Base.astro holds the page until every shot has
+	   decoded, so the article fades in whole. */
+	eager?: boolean;
+}
+
+const {
+	src,
+	srcDark,
+	video,
+	videoDark,
+	alt,
+	caption,
+	eager = false,
+} = Astro.props;
+
+const widths = [480, 800, 1200];
+const sizes = "(max-width: 900px) 100vw, 65ch";
+const dark = "(prefers-color-scheme: dark)";
+
+const videos = import.meta.glob<string>("../assets/projects/*.mp4", {
+	query: "?url",
+	import: "default",
+	eager: true,
+});
+function videoNamed(name?: string) {
+	if (!name) return undefined;
+	const url = videos[`../assets/projects/${name.split("/").pop()}`];
+	if (!url) throw new Error(`Shot: no video named ${name} in src/assets/projects/`);
+	return url;
+}
+const posterOf = (image?: ImageMetadata) =>
+	image &&
+	getImage({ src: image, width: Math.min(image.width, 1440), format: "webp" });
+
+const videoUrl = videoNamed(video);
+const videoDarkUrl = videoNamed(videoDark);
+const poster = videoUrl ? await posterOf(src) : undefined;
+const posterDark = videoDarkUrl ? await posterOf(srcDark) : undefined;
+const imageDark =
+	!videoUrl && srcDark
+		? await getImage({ src: srcDark, widths, format: "webp" })
+		: undefined;
+---
+
+<figure>
+  <div class:list={['frame', { empty: !src }]}>
+    {
+      videoUrl && poster && src ? (
+        <>
+          {/* Native controls until the script below takes over, so it still
+              plays with JavaScript off. */}
+          <video
+            poster={posterDark ? undefined : poster.src}
+            data-poster={posterDark ? poster.src : undefined}
+            data-poster-dark={posterDark?.src}
+            width={src.width}
+            height={src.height}
+            aria-label={alt ?? caption}
+            preload="auto"
+            muted
+            loop
+            playsinline
+            controls
+            data-shot-video
+          >
+            {videoDarkUrl && (
+              <source src={videoDarkUrl} type="video/mp4" media={dark} />
+            )}
+            <source src={videoUrl} type="video/mp4" />
+          </video>
+          <button type="button" class="mono toggle" hidden>
+            play
+          </button>
+        </>
+      ) : src ? (
+        <picture>
+          {imageDark && (
+            <source
+              media={dark}
+              srcset={imageDark.srcSet.attribute}
+              sizes={sizes}
+              type="image/webp"
+            />
+          )}
+          <Image
+            src={src}
+            alt={alt ?? caption}
+            widths={widths}
+            sizes={sizes}
+            loading="eager"
+            fetchpriority={eager ? 'high' : undefined}
+            decoding="async"
+          />
+        </picture>
+      ) : (
+        <span class="mono ph" aria-hidden="true">
+          screenshot
+        </span>
+      )
+    }
+  </div>
+  <figcaption class="mono">{caption}</figcaption>
+</figure>
+
+<script>
+  /* Recordings play while they're on screen and pause once they leave, so a
+     page of them decodes one at a time. Under reduced motion nothing starts
+     on its own; the button still plays it. A video the reader paused stays
+     paused until they play it again. */
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  const dark = matchMedia("(prefers-color-scheme: dark)");
+  let observer: IntersectionObserver | undefined;
+
+  /* A themed recording picks its source and poster once, on load. If the
+     system switches theme with the page open, pick again and carry on. */
+  dark.addEventListener("change", () => {
+    for (const video of document.querySelectorAll<HTMLVideoElement>(
+      "video[data-poster-dark]",
+    )) {
+      const playing = !video.paused;
+      video.poster =
+        (dark.matches && video.dataset.posterDark) || video.dataset.poster || "";
+      video.load();
+      if (playing) video.play().catch(() => {});
+    }
+  });
+
+  function label(video: HTMLVideoElement, button: HTMLButtonElement) {
+    button.textContent = video.paused ? "play" : "pause";
+    button.setAttribute("aria-label", video.paused ? "Play video" : "Pause video");
+  }
+
+  document.addEventListener("astro:page-load", () => {
+    observer?.disconnect();
+    observer = new IntersectionObserver(
+      (entries) => {
+        for (const { target, isIntersecting } of entries) {
+          const video = target as HTMLVideoElement;
+          if (!isIntersecting) video.pause();
+          else if (!still.matches && !("held" in video.dataset))
+            video.play().catch(() => {});
+        }
+      },
+      { threshold: 0.4 },
+    );
+
+    for (const video of document.querySelectorAll<HTMLVideoElement>(
+      "video[data-shot-video]",
+    )) {
+      const button = video.nextElementSibling as HTMLButtonElement;
+      /* After a client-side navigation the element was parsed into a detached
+         document, where picking a source fails, and moving it into this one
+         doesn't retry. Start it over. */
+      if (video.error || video.networkState === video.NETWORK_NO_SOURCE)
+        video.load();
+      video.controls = false;
+      button.hidden = false;
+      video.addEventListener("play", () => label(video, button));
+      video.addEventListener("pause", () => label(video, button));
+      button.addEventListener("click", () => {
+        if (video.paused) {
+          delete video.dataset.held;
+          video.play().catch(() => {});
+        } else {
+          video.dataset.held = "";
+          video.pause();
+        }
+      });
+      label(video, button);
+      observer.observe(video);
+    }
+  });
+</script>
+
+<style>
+  figure {
+    margin-top: 1.75rem;
+  }
+
+  .frame {
+    position: relative;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--faint);
+  }
+
+  .frame picture,
+  .frame img,
+  .frame video {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Placeholder: the frame at a 16:10 plate, hatched like unetched copper
+     so it reads as deliberately blank rather than as a broken image. */
+  .frame.empty {
+    aspect-ratio: 16 / 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent 0 7px,
+      var(--hairline) 7px 8px
+    );
+  }
+
+  /* The placeholder's label and the video toggle are the same small chip. */
+  .ph,
+  .toggle {
+    background: var(--bg);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 0.25rem 0.625rem;
+    letter-spacing: 0.06em;
+  }
+
+  .toggle {
+    position: absolute;
+    right: 0.625rem;
+    bottom: 0.625rem;
+    font-size: 0.6875rem;
+    line-height: 1.4;
+    opacity: 0.85;
+    transition:
+      opacity 150ms ease,
+      color 150ms ease;
+  }
+
+  .toggle:hover {
+    opacity: 1;
+    color: var(--accent);
+  }
+
+  .toggle:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  figcaption {
+    margin-top: 0.625rem;
+  }
+</style>

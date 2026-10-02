@@ -1,0 +1,77 @@
+---
+import Base from "../../layouts/Base.astro";
+import PassionPattern from "../PassionPattern.astro";
+import PageNav from "../PageNav.astro";
+import Rail from "../Rail.astro";
+import { getProjectRail } from "../../data/projects";
+
+const groups = await getProjectRail();
+---
+
+<Base
+  title="Projects"
+  description="Projects by Horațiu-Gabriel Maier: products people use, from an accounting tool to a university schedule app, and research on cryptographic image watermarking."
+  wide
+  router
+>
+  <PageNav href="/" label="← home" />
+  {
+    groups.length > 0 ? (
+      <div class="layout">
+        <aside transition:name="rail" transition:persist="rail">
+          <Rail groups={groups} label="All projects" />
+        </aside>
+        <div class="blurb s" style="--i: 1">
+          <h1>Projects</h1>
+          <p>
+            Things I've built, and what each one actually does. Pick one from
+            the rail to read about it.
+          </p>
+          <p>
+            They fall into two kinds. <strong>Products</strong> are things
+            people use or play: a tool for accountants that is live today, an
+            app students rely on for their timetable, and a game.{" "}
+            <strong>Research</strong> is the academic work, starting with my
+            bachelor's thesis on hiding cryptographic signatures inside images.
+          </p>
+        </div>
+      </div>
+    ) : (
+      <p class="empty s" style="--i: 0">
+        Nothing here yet.
+      </p>
+    )
+  }
+  <PassionPattern wide />
+</Base>
+
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 65ch);
+    gap: 3.5rem;
+    align-items: start;
+  }
+
+  .blurb p {
+    margin-top: 0.875rem;
+    color: var(--muted);
+  }
+
+  .empty {
+    color: var(--muted);
+  }
+
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+
+    /* The aside is transition:persist, so select it through the fresh
+       .layout parent — it carries the previous page's scope after navigation. */
+    .layout > :global(aside) {
+      order: 2;
+    }
+  }
+</style>

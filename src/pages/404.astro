@@ -1,0 +1,27 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Not found" router>
+  <h1 class="s" style="--i: 0">There’s nothing at this address.</h1>
+  <p class="s mono links" style="--i: 1">
+    <a href="/">← home</a>
+  </p>
+</Base>
+
+<style>
+  .links {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.25rem;
+  }
+
+  .links a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  .links a:hover {
+    color: var(--accent);
+  }
+</style>

@@ -1,0 +1,377 @@
+---
+/* A random procedural motif — one per passion — drawn into the empty band
+   right of the text column, redrawn on each client-router navigation. Pure
+   ornament: hidden from assistive tech and on narrow screens, never takes
+   the pointer. Force one with ?pattern=0..4. `wide` clears the timeline rail. */
+interface Props {
+	wide?: boolean;
+}
+const { wide = false } = Astro.props;
+---
+
+<div id="passion-pattern" class:list={[{ wide }]} aria-hidden="true">
+  <svg xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<script>
+  type Rand = () => number
+
+  const rf = (r: Rand, lo: number, hi: number) => lo + r() * (hi - lo)
+  const ri = (r: Rand, lo: number, hi: number) =>
+    lo + Math.floor(r() * (hi - lo + 1))
+  const px = (v: number) => Math.round(v * 10) / 10
+
+  /* ---- programming: PCB traces with 45° jogs and pads, routed on a
+     coarse grid with an occupancy map so no two traces touch or cross ---- */
+  function circuits(w: number, h: number, r: Rand): string {
+    const g = 14 /* routing pitch = minimum clearance between traces */
+    const cols = Math.floor((w - 8) / g)
+    const rows = Math.floor((h - 8) / g)
+    const used = new Uint8Array(cols * rows)
+    const P = (c: number) => px(4 + (c + 0.5) * g)
+    const free = (cx: number, cy: number) =>
+      cx >= 0 && cx < cols && cy >= 0 && cy < rows && !used[cy * cols + cx]
+    const found: { d: string; sx: number; sy: number; ex: number; ey: number }[] = []
+    for (let a = 0, n = Math.round(h / 14); a < n; a++) {
+      let cx = ri(r, 0, cols - 1)
+      let cy = ri(r, 0, Math.max(0, rows - 14))
+      if (!free(cx, cy)) continue
+      const cells: number[] = []
+      const mark = (mx: number, my: number) => {
+        used[my * cols + mx] = 1
+        cells.push(my * cols + mx)
+      }
+      const sx = cx
+      const sy = cy
+      mark(cx, cy)
+      let d = `M${P(cx)} ${P(cy)}`
+      let stuck = 0
+      for (let s = ri(r, 5, 14); s > 0 && stuck < 2; s--) {
+        if (r() < 0.62) {
+          /* vertical run */
+          let len = 0
+          for (const want = ri(r, 2, 8); len < want && free(cx, cy + 1); len++)
+            mark(cx, ++cy)
+          if (len) d += `V${P(cy)}`
+          else stuck++
+        } else {
+          /* horizontal or 45° jog; the diagonal also checks the corner
+             cells so opposite diagonals can't cross */
+          const dir = r() < 0.5 ? -1 : 1
+          const dy = r() < 0.55 ? 1 : 0
+          let len = 0
+          for (const want = ri(r, 1, 3); len < want; len++) {
+            if (!free(cx + dir, cy + dy)) break
+            if (
+              dy &&
+              !free(cx + dir, cy) &&
+              !free(cx, cy + 1)
+            )
+              break
+            cx += dir
+            cy += dy
+            mark(cx, cy)
+          }
+          if (len) d += dy ? `L${P(cx)} ${P(cy)}` : `H${P(cx)}`
+          else stuck++
+        }
+      }
+      if (cells.length < 7) {
+        for (const c of cells) used[c] = 0
+        continue
+      }
+      found.push({ d, sx, sy, ex: cx, ey: cy })
+    }
+    let plain = ''
+    let pads = ''
+    let accent = ''
+    const accentAt = found.length ? ri(r, 0, found.length - 1) : -1
+    found.forEach((t, i) => {
+      const ends =
+        `<circle cx="${P(t.sx)}" cy="${P(t.sy)}" r="2.4"/>` +
+        `<circle cx="${P(t.ex)}" cy="${P(t.ey)}" r="1.4"/>`
+      if (i === accentAt) accent = `<path d="${t.d}"/>${ends}`
+      else {
+        plain += `<path d="${t.d}"/>`
+        pads += ends
+      }
+    })
+    return (
+      `<g fill="none" stroke="var(--muted)" opacity="0.13">${plain}</g>` +
+      `<g fill="var(--bg)" stroke="var(--muted)" opacity="0.16">${pads}</g>` +
+      `<g fill="none" stroke="var(--accent)" opacity="0.32">${accent}</g>`
+    )
+  }
+
+  /* ---- philosophy: a perfect maze, some walls left undrawn ---- */
+  function labyrinth(w: number, h: number, r: Rand): string {
+    const cell = 30
+    const cols = Math.max(4, Math.floor((w - 8) / cell))
+    const rows = Math.max(4, Math.floor((h - 8) / cell))
+    const ox = (w - cols * cell) / 2
+    const oy = 4
+    const hw = new Uint8Array((rows + 1) * cols).fill(1)
+    const vw = new Uint8Array(rows * (cols + 1)).fill(1)
+    const seen = new Uint8Array(cols * rows)
+    const stack = [ri(r, 0, cols * rows - 1)]
+    seen[stack[0]] = 1
+    while (stack.length) {
+      const cur = stack[stack.length - 1]
+      const cx = cur % cols
+      const cy = (cur - cx) / cols
+      const nb: [number, number][] = []
+      if (cx > 0 && !seen[cur - 1]) nb.push([cur - 1, 0])
+      if (cx < cols - 1 && !seen[cur + 1]) nb.push([cur + 1, 1])
+      if (cy > 0 && !seen[cur - cols]) nb.push([cur - cols, 2])
+      if (cy < rows - 1 && !seen[cur + cols]) nb.push([cur + cols, 3])
+      if (!nb.length) {
+        stack.pop()
+        continue
+      }
+      const [nxt, dir] = nb[ri(r, 0, nb.length - 1)]
+      if (dir === 0) vw[cy * (cols + 1) + cx] = 0
+      else if (dir === 1) vw[cy * (cols + 1) + cx + 1] = 0
+      else if (dir === 2) hw[cy * cols + cx] = 0
+      else hw[(cy + 1) * cols + cx] = 0
+      seen[nxt] = 1
+      stack.push(nxt)
+    }
+    let d = ''
+    for (let j = 0; j <= rows; j++)
+      for (let i = 0; i < cols; i++)
+        if (hw[j * cols + i] && r() > 0.25)
+          d += `M${px(ox + i * cell)} ${px(oy + j * cell)}h${cell}`
+    for (let j = 0; j < rows; j++)
+      for (let i = 0; i <= cols; i++)
+        if (vw[j * (cols + 1) + i] && r() > 0.25)
+          d += `M${px(ox + i * cell)} ${px(oy + j * cell)}v${cell}`
+    const mx = ox + (Math.floor(cols / 2) + 0.5) * cell
+    const my = oy + (Math.floor(rows / 2) + 0.5) * cell
+    return (
+      `<g fill="none" stroke="var(--muted)" opacity="0.1" stroke-linecap="square"><path d="${d}"/></g>` +
+      `<circle cx="${px(mx)}" cy="${px(my)}" r="3" fill="var(--accent)" opacity="0.3"/>`
+    )
+  }
+
+  /* ---- history: a cadastral map — city blocks split by streets ---- */
+  function mapGrid(w: number, h: number, r: Rand): string {
+    const blocks: [number, number, number, number][] = []
+    const split = (x: number, y: number, bw: number, bh: number) => {
+      if (bw < 64 || bh < 64 || (bw < 130 && bh < 130 && r() < 0.3)) {
+        blocks.push([x, y, bw, bh])
+        return
+      }
+      const street = rf(r, 14, 24)
+      if (bh >= bw) {
+        const cut = bh * rf(r, 0.35, 0.65)
+        split(x, y, bw, cut - street / 2)
+        split(x, y + cut + street / 2, bw, bh - cut - street / 2)
+      } else {
+        const cut = bw * rf(r, 0.35, 0.65)
+        split(x, y, cut - street / 2, bh)
+        split(x + cut + street / 2, y, bw - cut - street / 2, bh)
+      }
+    }
+    split(6, 6, w - 12, h - 12)
+    let outlines = ''
+    let inner = ''
+    blocks.forEach(([x, y, bw, bh]) => {
+      if (bw < 12 || bh < 12) return
+      outlines += `<rect x="${px(x)}" y="${px(y)}" width="${px(bw)}" height="${px(bh)}" rx="1"/>`
+      /* the odd block gets an inner outline, like a courtyard */
+      if (r() < 0.18 && bw > 36 && bh > 36)
+        inner += `<rect x="${px(x + 6)}" y="${px(y + 6)}" width="${px(bw - 12)}" height="${px(bh - 12)}" rx="1"/>`
+    })
+    /* hatch a few blocks; the first in accent */
+    let hatch = ''
+    let accHatch = ''
+    for (let k = 0, n = ri(r, 3, 6); k < n; k++) {
+      const [x, y, bw, bh] = blocks[ri(r, 0, blocks.length - 1)]
+      if (bw < 20 || bh < 20) continue
+      let lines = ''
+      for (let hx = x + 4; hx < x + bw - 2; hx += 4.5)
+        lines += `M${px(hx)} ${px(y + 2)}v${px(bh - 4)}`
+      if (k === 0) accHatch += lines
+      else hatch += lines
+    }
+    return (
+      `<g fill="none" stroke="var(--muted)" opacity="0.09"><path d="${hatch}"/></g>` +
+      `<g fill="none" stroke="var(--accent)" opacity="0.22"><path d="${accHatch}"/></g>` +
+      `<g fill="none" stroke="var(--muted)" opacity="0.1">${outlines}</g>` +
+      `<g fill="none" stroke="var(--hairline)" opacity="0.45">${inner}</g>`
+    )
+  }
+
+  /* ---- nature: two strands and their rungs, full height ---- */
+  function helix(w: number, h: number, r: Rand): string {
+    const cx = w * rf(r, 0.45, 0.55)
+    const amp = Math.min(w / 2 - 12, w * rf(r, 0.3, 0.42))
+    /* start above the top edge and run past the bottom so the strands'
+       meeting dots fall off the page — the helix reads as clipped */
+    const seg = amp * rf(r, 2.7, 3.4)
+    const y0 = -seg * rf(r, 0.2, 0.8)
+    const n = Math.ceil((h + seg * 0.25 - y0) / seg)
+    const strand = (dir: 1 | -1) => {
+      let d = `M${px(cx)} ${px(y0)}`
+      for (let i = 0; i < n; i++) {
+        const a = y0 + i * seg
+        const b = a + seg
+        const side = (i % 2 === 0 ? dir : -dir) * amp
+        d += `C${px(cx + side)} ${px(a + seg / 3)} ${px(cx + side)} ${px(b - seg / 3)} ${px(cx)} ${px(b)}`
+      }
+      return d
+    }
+    const all: { d: string; y: number }[] = []
+    for (let i = 0; i < n; i++) {
+      const a = y0 + i * seg
+      for (const t of [0.3, 0.5, 0.7]) {
+        const half = 3 * t * (1 - t) * amp
+        const y = a + seg * t
+        all.push({ d: `M${px(cx - half)} ${px(y)}H${px(cx + half)}`, y })
+      }
+    }
+    /* one or two rungs picked out in the accent color — only from rungs
+       actually on the page, since the ends are clipped */
+    const onPage = all.flatMap(({ y }, i) => (y > 4 && y < h - 4 ? [i] : []))
+    const marked = new Set<number>()
+    for (let k = ri(r, 1, 2); k > 0 && onPage.length; k--)
+      marked.add(onPage[ri(r, 0, onPage.length - 1)])
+    let rungs = ''
+    let acc = ''
+    all.forEach(({ d }, i) => {
+      if (marked.has(i)) acc += d
+      else rungs += d
+    })
+    return (
+      `<g fill="none" stroke="var(--hairline)" opacity="0.55"><path d="${rungs}"/></g>` +
+      `<g fill="none" stroke="var(--muted)" opacity="0.12">` +
+      `<path d="${strand(1)}"/><path d="${strand(-1)}"/></g>` +
+      `<g fill="none" stroke="var(--accent)" opacity="0.55"><path d="${acc}"/></g>`
+    )
+  }
+
+  /* ---- the Universe: star field, one cluster, a small system ---- */
+  function stars(w: number, h: number, r: Rand): string {
+    let faint = ''
+    let mid = ''
+    let acc = ''
+    const dot = (x: number, y: number, rad: number) =>
+      `<circle cx="${px(x)}" cy="${px(y)}" r="${px(rad)}"/>`
+    for (let i = 0, n = Math.round((w * h) / 2500); i < n; i++) {
+      const c = dot(rf(r, 3, w - 3), rf(r, 4, h - 4), 0.5 + 1.1 * r() * r())
+      if (r() < 0.18) mid += c
+      else faint += c
+    }
+    const ccx = rf(r, w * 0.25, w * 0.75)
+    const ccy = rf(r, h * 0.15, h * 0.85)
+    const spread = rf(r, w * 0.18, w * 0.3)
+    for (let i = 0; i < 100; i++) {
+      const x = ccx + ((r() + r() + r() - 1.5) / 1.5) * spread
+      const y = ccy + ((r() + r() + r() - 1.5) / 1.5) * spread
+      if (x < 3 || x > w - 3 || y < 4 || y > h - 4) continue
+      const c = dot(x, y, 0.5 + r() * 0.9)
+      if (r() < 0.3) mid += c
+      else faint += c
+    }
+    /* a small solar system: a sun, faint tilted orbits, planets on them */
+    const scx = w / 2
+    const scy = rf(r, h * 0.15, h * 0.85)
+    const maxR = Math.min(w / 2 - 10, 96)
+    let orb = ''
+    let planets = ''
+    for (let i = 0, n = ri(r, 3, 5); i < n; i++) {
+      const rx = maxR * ((i + 1) / n) * rf(r, 0.85, 1)
+      const ry = rx * 0.38
+      orb += `<ellipse cx="${px(scx)}" cy="${px(scy)}" rx="${px(rx)}" ry="${px(ry)}"/>`
+      const th = rf(r, 0, Math.PI * 2)
+      planets += dot(scx + rx * Math.cos(th), scy + ry * Math.sin(th), rf(r, 1.1, 2))
+    }
+    for (let i = 0; i < 5; i++)
+      acc += dot(rf(r, 6, w - 6), rf(r, 10, h - 10), rf(r, 1, 1.6))
+    return (
+      `<g fill="var(--hairline)">${faint}</g>` +
+      `<g fill="var(--muted)" opacity="0.35">${mid}</g>` +
+      `<g fill="none" stroke="var(--hairline)" opacity="0.7">${orb}</g>` +
+      `<g fill="var(--muted)" opacity="0.45">${planets}</g>` +
+      `<circle cx="${px(scx)}" cy="${px(scy)}" r="3.4" fill="var(--accent)" opacity="0.5"/>` +
+      `<g fill="var(--accent)" opacity="0.4">${acc}</g>`
+    )
+  }
+
+  function render() {
+    const host = document.getElementById('passion-pattern')
+    const svg = host?.querySelector('svg')
+    if (host && svg && matchMedia('(min-width: 1024px)').matches) {
+      const w = host.clientWidth
+      const h = document.documentElement.scrollHeight
+      if (w >= 120 && h > 0) {
+        host.style.height = `${h}px`
+        svg.setAttribute('width', `${w}`)
+        svg.setAttribute('height', `${h}`)
+        svg.setAttribute('viewBox', `0 0 ${w} ${h}`)
+        const generators = [circuits, labyrinth, mapGrid, helix, stars]
+        const forced = new URLSearchParams(location.search).get('pattern')
+        const idx =
+          forced !== null && +forced >= 0 && +forced < generators.length
+            ? Math.floor(+forced)
+            : Math.floor(Math.random() * generators.length)
+        svg.innerHTML = generators[idx](w, h, Math.random)
+        host.classList.add('on')
+      }
+    }
+  }
+
+  render()
+  /* Client-router navigation swaps in a fresh, empty host without re-running
+     this module — redraw once the new document is in place. */
+  document.addEventListener('astro:after-swap', render)
+</script>
+
+<style>
+  #passion-pattern {
+    position: absolute;
+    top: 0;
+    /* past the text column plus a gap = half the left margin */
+    left: calc(clamp(1.5rem, 16vw, 18rem) + 65ch + clamp(0.75rem, 8vw, 9rem));
+    right: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  /* writing pages: the column is the timeline rail + gap + text (the
+     main.wide width), so start the band past all three */
+  #passion-pattern.wide {
+    left: calc(
+      clamp(1.5rem, 16vw, 18rem) + 15rem + 3.5rem + 65ch +
+        clamp(0.75rem, 8vw, 9rem)
+    );
+  }
+
+  /* Same curve as the entrance stagger, arriving just after the content. */
+  #passion-pattern.on {
+    animation: pp-fade 0.5s cubic-bezier(0.21, 0.47, 0.32, 0.98) 0.25s both;
+  }
+
+  @keyframes pp-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #passion-pattern.on {
+      animation: none;
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 1023.9px) {
+    #passion-pattern {
+      display: none;
+    }
+  }
+</style>

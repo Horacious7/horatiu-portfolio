@@ -1,0 +1,16 @@
+---
+import WritingPost from "../../components/pages/WritingPost.astro";
+import { getPosts } from "../../data/writing";
+
+export async function getStaticPaths() {
+	const posts = await getPosts();
+	return posts.map((post) => ({
+		params: { slug: post.id },
+		props: { post },
+	}));
+}
+
+const { post } = Astro.props;
+---
+
+<WritingPost {post} />

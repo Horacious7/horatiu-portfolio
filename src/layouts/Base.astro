@@ -1,0 +1,255 @@
+---
+import { ClientRouter } from "astro:transitions";
+import { Font } from "astro:assets";
+import "lenis/dist/lenis.css";
+import "../styles/global.css";
+import { site } from "../data/site";
+import CustomCursor from "../components/CustomCursor.astro";
+
+interface Props {
+	title?: string;
+	description?: string;
+	wide?: boolean;
+	router?: boolean;
+}
+
+const { title, wide = false, router = false } = Astro.props;
+const description = Astro.props.description ?? site.description;
+const pageTitle = title ? `${title} — ${site.name}` : `${site.name} | ${site.role}`;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+
+const feed = new URL("/rss.xml", Astro.site);
+---
+
+<!doctype html>
+{
+  /* No root crossfade: it would compound with the entrance stagger below —
+    the old page washing out over content still at opacity 0 reads as a
+    flash. Instead the swap is instant and the entrance is the transition,
+    so client navigations and hard loads look the same. */
+}
+<html lang="en" transition:animate="none">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {
+      /* Every glyph on the site is in one of these two, so nothing loads on
+        demand and both are worth preloading. */
+    }
+    <Font cssVariable="--font-inter" preload />
+    <Font cssVariable="--font-meslo" preload />
+    <script is:inline>
+      /* Holds the page until the fonts and the DOM are ready, then lets the
+         entrance in global.css run — see `[data-loading]` there. Inline and
+         above the stylesheet so the attribute is set before the first paint.
+         With JS off it is never set and the page renders as normal. */
+      (() => {
+        const root = document.documentElement;
+        root.dataset.loading = "";
+
+        const reveal = () => delete root.dataset.loading;
+
+        const domReady = new Promise((done) => {
+          if (document.readyState !== "loading") done();
+          else
+            document.addEventListener("DOMContentLoaded", done, { once: true });
+        });
+
+        /* Start the faces loading rather than awaiting document.fonts.ready
+           alone: nothing is pending until layout asks for a font, so `ready`
+           on its own can resolve before the fonts exist. Once these are
+           pending it is the real settled signal, and it covers any face
+           registered after this ran. Relies on the @font-face rules above
+           being registered by now. */
+        const fontsLoaded = (async () => {
+          if (!document.fonts) return;
+          const loads = [];
+          // Also the local() fallbacks, which reject when the font isn't installed.
+          document.fonts.forEach((face) =>
+            loads.push(face.load().catch(() => {})),
+          );
+          await Promise.all(loads);
+          return document.fonts.ready;
+        })();
+
+        /* Nothing loads lazily, so the page holds for its media as well:
+           every image, and every video's poster, decoded before the fade.
+           A recording's poster is its first frame, so the page arrives
+           whole and the video takes over from there. */
+        const decoded = async (image) => {
+          try {
+            await image.decode();
+          } catch {}
+        };
+        const poster = (video) => {
+          const image = new Image();
+          image.src = video.poster;
+          return decoded(image);
+        };
+        const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+        const mediaLoaded = domReady.then(() => {
+          /* A recording with a poster per theme gets the one that matches,
+             here rather than in the markup, so only that one downloads. */
+          for (const video of document.querySelectorAll("video[data-poster]"))
+            video.poster =
+              (dark && video.dataset.posterDark) || video.dataset.poster;
+          return Promise.all([
+            ...[...document.images].map(decoded),
+            ...[...document.querySelectorAll("video[poster]")].map(poster),
+          ]);
+        });
+
+        /* Both handlers: a rejection here should still show the page. */
+        Promise.all([mediaLoaded, fontsLoaded]).then(reveal, reveal);
+      })();
+    </script>
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={site.name}
+      href={feed}
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="generator" content={Astro.generator} />
+    {router && <ClientRouter />}
+  </head>
+  <body>
+    <script>
+      import Lenis from "lenis";
+
+      /* Keep wheel smoothing, but only request frames while a scroll is
+         moving. The default autoRaf loop also runs on an idle page. */
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const lenis = new Lenis({ lerp: 0.5, anchors: { onStart: schedule } });
+        let frame = 0;
+
+        function tick(time: number) {
+          frame = 0;
+          lenis.raf(time);
+          if (lenis.isScrolling === "smooth")
+            frame = requestAnimationFrame(tick);
+        }
+
+        function schedule() {
+          if (frame || document.hidden) return;
+          // An idle interval must not become the first animation's delta.
+          lenis.time = performance.now();
+          frame = requestAnimationFrame(tick);
+        }
+
+        lenis.on("virtual-scroll", schedule);
+        document.addEventListener("visibilitychange", () => {
+          cancelAnimationFrame(frame);
+          frame = 0;
+          if (!document.hidden && lenis.isScrolling === "smooth") schedule();
+        });
+        document.addEventListener("astro:before-swap", () => {
+          lenis.scrollTo(window.scrollY, { immediate: true, force: true });
+          cancelAnimationFrame(frame);
+          frame = 0;
+        });
+        document.addEventListener("astro:page-load", () => lenis.resize());
+      }
+    </script>
+    <script>
+      /* The rail/timeline and the back-link row enter in the real DOM, not
+         as view-transition pseudo-elements: a pseudo animation holds the
+         transition open for its whole run, and while it is open the page
+         renders through the snapshot tree — the entrance stagger visibly
+         hitches. So every group is de-animated in global.css and this marks
+         the freshly arrived elements `entering` instead. Entry means the
+         outgoing page had no counterpart; the class is stripped before the
+         next swap so re-inserting a persisted node never replays the fade. */
+      const persistKeys = () =>
+        new Set(
+          [...document.querySelectorAll("[data-astro-transition-persist]")].map(
+            (el) => el.getAttribute("data-astro-transition-persist"),
+          ),
+        );
+
+      let hadNav = true;
+      let hadAsides = persistKeys();
+
+      document.addEventListener("astro:before-swap", () => {
+        hadNav = !!document.querySelector(".nav");
+        hadAsides = persistKeys();
+        document
+          .querySelectorAll(".entering")
+          .forEach((el) => el.classList.remove("entering"));
+      });
+
+      /* The router's side of the hold in <head>: fetch the next page, then
+         decode its images and posters before swapping it in, so a client-side
+         navigation fades in whole too. The incoming document is detached and
+         loads nothing itself; these warm the cache its elements then hit. */
+      async function warm(src: string, srcset = "", sizes = "") {
+        const image = new Image();
+        image.sizes = sizes;
+        image.srcset = srcset;
+        if (src) image.src = src;
+        try {
+          await image.decode();
+        } catch {}
+      }
+
+      document.addEventListener("astro:before-preparation", (event) => {
+        const load = event.loader;
+        event.loader = async () => {
+          await load();
+          const next = event.newDocument;
+          const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+          for (const video of next.querySelectorAll<HTMLVideoElement>(
+            "video[data-poster]",
+          ))
+            video.setAttribute(
+              "poster",
+              (dark && video.dataset.posterDark) || video.dataset.poster || "",
+            );
+          await Promise.all([
+            ...[...next.images].map((img) => {
+              /* Inside a <picture>, warm the source the browser will pick for
+                 this theme, not the fallback. */
+              const source = img.parentElement?.matches("picture")
+                ? [...img.parentElement.querySelectorAll("source")].find(
+                    (s) => !s.media || matchMedia(s.media).matches,
+                  )
+                : undefined;
+              return source
+                ? warm("", source.srcset, source.sizes)
+                : warm(img.src, img.srcset, img.sizes);
+            }),
+            ...[...next.querySelectorAll<HTMLVideoElement>("video[poster]")].map(
+              (video) => warm(video.poster),
+            ),
+          ]);
+        };
+      });
+
+      document.addEventListener("astro:after-swap", () => {
+        if (!hadNav) document.querySelector(".nav")?.classList.add("entering");
+        document
+          .querySelectorAll("[data-astro-transition-persist]")
+          .forEach((el) => {
+            if (
+              !hadAsides.has(el.getAttribute("data-astro-transition-persist"))
+            )
+              el.classList.add("entering");
+          });
+      });
+    </script>
+    <CustomCursor />
+    <main class:list={[{ wide }]}>
+      <slot />
+    </main>
+  </body>
+</html>

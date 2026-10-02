@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.astro/
+.vercel/
+.env
+.env.*
+*.pem
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+_to_delete/
+PLAN.md

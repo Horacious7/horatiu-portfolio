@@ -1,0 +1,112 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import PassionPattern from "../PassionPattern.astro";
+import PageNav from "../PageNav.astro";
+import Rail from "../Rail.astro";
+import { getWritingRail, postDateFmt, postPath } from "../../data/writing";
+
+interface Props {
+	post: CollectionEntry<"writing">;
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const groups = await getWritingRail();
+---
+
+<Base title={post.data.title} description={post.data.description} wide router>
+  <PageNav href="/" label="← home" />
+  <div class="layout">
+    <article class="s-blocks">
+      <header>
+        <h1>{post.data.title}</h1>
+        <p class="mono">{postDateFmt.format(post.data.date)}</p>
+      </header>
+      <div class="prose">
+        <Content />
+      </div>
+    </article>
+    <aside transition:name="timeline" transition:persist="timeline">
+      <Rail groups={groups} current={postPath(post.id)} label="All posts" />
+    </aside>
+  </div>
+  <PassionPattern wide />
+</Base>
+
+<style>
+  /* Article comes first in the DOM so keyboard users reach the post before
+     the rail; the grid places the rail to its left. The aside is
+     transition:persist, so select it through the fresh .layout parent —
+     after a navigation it carries the previous page's scope attribute. */
+  .layout {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 65ch);
+    gap: 3.5rem;
+    align-items: start;
+  }
+
+  article {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .layout > :global(aside) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+
+    article {
+      grid-column: 1;
+    }
+
+    .layout > :global(aside) {
+      grid-row: 2;
+    }
+  }
+
+  article h1 {
+    font-size: 1.25rem;
+    letter-spacing: -0.014em;
+  }
+
+  header .mono {
+    margin-top: 0.375rem;
+  }
+
+  .prose {
+    margin-top: 2rem;
+  }
+
+  .prose :global(p),
+  .prose :global(ul),
+  .prose :global(ol),
+  .prose :global(pre),
+  .prose :global(blockquote) {
+    margin-top: 1.125rem;
+  }
+
+  .prose :global(h2),
+  .prose :global(h3) {
+    margin-top: 2rem;
+  }
+
+  .prose :global(blockquote) {
+    border-left: 2px solid var(--hairline);
+    padding-left: 1.125rem;
+    color: var(--muted);
+  }
+
+  .prose :global(hr) {
+    border: 0;
+    border-top: 1px solid var(--hairline);
+    margin-top: 2rem;
+  }
+</style>

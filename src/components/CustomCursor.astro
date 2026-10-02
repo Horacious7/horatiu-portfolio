@@ -1,0 +1,152 @@
+---
+// A dot cursor in the accent colour that lags the pointer and turns into a
+// crosshair over links and buttons. Off for touch and reduced-motion.
+---
+
+<div id="cursor-dot" aria-hidden="true"></div>
+
+<style>
+  /* Hide the real cursor everywhere, including over links and inputs. */
+  :global(html.custom-cursor),
+  :global(html.custom-cursor *) {
+    cursor: none !important;
+  }
+
+  #cursor-dot {
+    pointer-events: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    will-change: transform, opacity;
+    transition:
+      opacity 200ms ease,
+      background 160ms ease;
+  }
+
+  /* Crosshair arms — hidden by default, revealed on hover */
+  #cursor-dot::before,
+  #cursor-dot::after {
+    content: '';
+    position: absolute;
+    background: var(--accent);
+    top: 50%;
+    left: 50%;
+    opacity: 0;
+    transition:
+      opacity 160ms ease,
+      transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Horizontal arm */
+  #cursor-dot::before {
+    width: 16px;
+    height: 2px;
+    transform: translate(-50%, -50%) scaleX(0);
+  }
+
+  /* Vertical arm */
+  #cursor-dot::after {
+    width: 2px;
+    height: 16px;
+    transform: translate(-50%, -50%) scaleY(0);
+  }
+
+  /* Crosshair state */
+  #cursor-dot.is-hovering {
+    background: transparent; /* hide dot, leaving only the + arms */
+  }
+
+  #cursor-dot.is-hovering::before {
+    opacity: 1;
+    transform: translate(-50%, -50%) scaleX(1);
+  }
+
+  #cursor-dot.is-hovering::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scaleY(1);
+  }
+</style>
+
+<script>
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const isTouch = window.matchMedia('(hover: none)').matches
+
+  if (!prefersReduced && !isTouch) {
+    const LERP = 0.28
+    const INTERACTIVE = 'a, button, [role="button"], label, input, textarea, select, summary'
+
+    // ClientRouter swaps <body> on navigation, so #cursor-dot is replaced
+    // while this module persists. Listeners bind once and act on `dot`,
+    // which init() re-points at the current element after each swap.
+    let dot: HTMLElement | null = null
+    let mouseX = 0, mouseY = 0
+    let dotX   = 0, dotY   = 0
+    let visible = false
+    let rafId  = 0
+
+    function show() {
+      if (dot && !visible) { dot.style.opacity = '1'; visible = true }
+    }
+    function hide() {
+      if (dot) dot.style.opacity = '0'
+      visible = false
+      cancelAnimationFrame(rafId)
+      rafId = 0
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX; mouseY = e.clientY
+      show()
+      if (!rafId) rafId = requestAnimationFrame(tick)
+    }, { passive: true })
+
+    window.addEventListener('mouseleave', hide, { passive: true })
+    window.addEventListener('mouseenter', show, { passive: true })
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) hide()
+    })
+
+    document.addEventListener('mouseover', (e) => {
+      if (dot && (e.target as Element).closest(INTERACTIVE))
+        dot.classList.add('is-hovering')
+    }, { passive: true })
+
+    document.addEventListener('mouseout', (e) => {
+      if (dot && (e.target as Element).closest(INTERACTIVE))
+        dot.classList.remove('is-hovering')
+    }, { passive: true })
+
+    function tick() {
+      rafId = 0
+      dotX += (mouseX - dotX) * LERP
+      dotY += (mouseY - dotY) * LERP
+      const moving = Math.abs(mouseX - dotX) > 0.1 || Math.abs(mouseY - dotY) > 0.1
+      if (!moving) { dotX = mouseX; dotY = mouseY }
+      if (dot) dot.style.transform = `translate(calc(${dotX}px - 50%), calc(${dotY}px - 50%))`
+      if (moving && visible) rafId = requestAnimationFrame(tick)
+    }
+
+    function init() {
+      dot = document.getElementById('cursor-dot')
+      if (!dot) return
+
+      document.documentElement.classList.add('custom-cursor')
+
+      dot.classList.remove('is-hovering')
+      visible = false
+
+      cancelAnimationFrame(rafId)
+      rafId = 0
+    }
+
+    init()
+    document.addEventListener('astro:page-load', init)
+  }
+</script>
