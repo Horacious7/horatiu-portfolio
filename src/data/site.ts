@@ -33,7 +33,7 @@ export const site = {
 	   approves it word for word; nothing else about Porsche Engineering goes
 	   anywhere else. */
 	work: [
-		"I'm a data engineer at Porsche Engineering in Cluj, working on data and automation. I build Databricks and PySpark pipelines and small dashboards, and Power Platform apps and flows, including AI models trained and deployed from the platform. I've automated parts of my team's workflow with GitHub Copilot, including an MCP server I wrote. I also work directly with clients on technical consulting, represent Romania in the company's student organisation, and organised an internal workshop on working effectively with AI.",
+		"I'm a data engineer at Porsche Engineering in Cluj, working on data and automation. I build Databricks and PySpark pipelines and small dashboards, and Power Platform apps and flows, including AI models trained and deployed from the platform. I've automated parts of my team's workflow with GitHub Copilot, including an MCP server I wrote. I also work directly with clients on technical consulting and represent Romania in the company's student organisation.",
 		"Before that I was a Deployment Lead at SAP Romania (Feb–Aug 2025), delivering SAP Ariba Sourcing implementations, with Groovy scripting in SAP Cloud Integration, for a team spread across four countries.",
 	],
 };
