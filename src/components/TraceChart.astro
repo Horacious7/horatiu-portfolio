@@ -1,0 +1,258 @@
+---
+/* TRACE's benchmark, drawn at build time from the thesis CSV: how many
+   signatures came back invalid without Resonance Optimization, per block size.
+   With it the count is 0 everywhere, so one series carries the whole story.
+   Runs that failed on capacity (the message didn't fit) are excluded: they
+   fail identically in both modes and say nothing about the optimization. */
+import csv from "../data/trace-benchmark.csv?raw";
+
+type Row = { block: number; optimized: boolean; error: string };
+
+const rows: Row[] = csv
+	.trim()
+	.split(/\r?\n/)
+	.slice(1)
+	.map((line) => {
+		const c = line.split(",");
+		return { block: Number(c[0]), optimized: c[3] === "True", error: c[8] ?? "" };
+	});
+
+const fits = (r: Row) => r.error !== "CapacityExceeded";
+const invalid = (r: Row) => r.error.startsWith("SignatureInvalid");
+
+/* Block sizes where at least one run fit; above that nothing does. */
+const blocks = [...new Set(rows.filter(fits).map((r) => r.block))].sort(
+	(a, b) => a - b,
+);
+const bars = blocks.map((block) => {
+	const off = rows.filter((r) => r.block === block && !r.optimized && fits(r));
+	const on = rows.filter((r) => r.block === block && r.optimized && fits(r));
+	return {
+		block,
+		runs: off.length,
+		failedOff: off.filter(invalid).length,
+		failedOn: on.filter(invalid).length,
+	};
+});
+const totalOff = bars.reduce((s, b) => s + b.failedOff, 0);
+const totalOn = bars.reduce((s, b) => s + b.failedOn, 0);
+const fitRuns = bars.reduce((s, b) => s + b.runs, 0);
+const largest = bars.reduce((m, b) => (b.failedOff > m.failedOff ? b : m));
+
+/* Geometry, in viewBox units. */
+const W = 640;
+const H = 260;
+const pad = { top: 28, right: 8, bottom: 40, left: 36 };
+const plotW = W - pad.left - pad.right;
+const plotH = H - pad.top - pad.bottom;
+const max = Math.ceil(Math.max(...bars.map((b) => b.failedOff)) / 5) * 5;
+const ticks = Array.from({ length: max / 5 + 1 }, (_, i) => i * 5);
+const step = plotW / bars.length;
+const barW = Math.min(28, step - 2);
+const y = (v: number) => pad.top + plotH - (v / max) * plotH;
+const x = (i: number) => pad.left + i * step + (step - barW) / 2;
+const r = 4;
+
+/* A bar with only its data end rounded, anchored square on the baseline. */
+const barPath = (i: number, v: number) => {
+	const x0 = x(i);
+	const x1 = x0 + barW;
+	const top = y(v);
+	const base = y(0);
+	const rr = Math.min(r, base - top);
+	return `M${x0} ${base}V${top + rr}Q${x0} ${top} ${x0 + rr} ${top}H${x1 - rr}Q${x1} ${top} ${x1} ${top + rr}V${base}Z`;
+};
+---
+
+<figure class="chart">
+  <p class="title">Invalid signatures without the optimization, by block size</p>
+  <p class="sub mono">
+    {totalOff} without it, {totalOn} with it, across {fitRuns} runs per mode where the message fit
+  </p>
+  <svg
+    viewBox={`0 0 ${W} ${H}`}
+    role="img"
+    aria-label={`Bar chart. Without Resonance Optimization, ${totalOff} of ${fitRuns} runs produced an invalid signature, most at block size ${largest.block} (${largest.failedOff}). With it, ${totalOn} at every block size.`}
+  >
+    {
+      ticks.map((t) => (
+        <g>
+          <line class="grid" x1={pad.left} x2={W - pad.right} y1={y(t)} y2={y(t)} />
+          <text class="tick" x={pad.left - 8} y={y(t)} dy="0.32em" text-anchor="end">
+            {t}
+          </text>
+        </g>
+      ))
+    }
+    {
+      bars.map((b, i) => (
+        <g class="bar">
+          <title>
+            {`Block size ${b.block}: ${b.failedOff} of ${b.runs} invalid without it, ${b.failedOn} with it`}
+          </title>
+          {/* Hit target: the whole column, not just the mark. */}
+          <rect class="hit" x={pad.left + i * step} y={pad.top} width={step} height={plotH} />
+          {b.failedOff > 0 ? (
+            <path class="mark" d={barPath(i, b.failedOff)} />
+          ) : (
+            <line class="zero" x1={x(i)} x2={x(i) + barW} y1={y(0) - 1} y2={y(0) - 1} />
+          )}
+          {b.block === largest.block && (
+            <text class="label" x={x(i) + barW / 2} y={y(b.failedOff) - 8} text-anchor="middle">
+              {b.failedOff}
+            </text>
+          )}
+          <text class="tick" x={x(i) + barW / 2} y={y(0) + 18} text-anchor="middle">
+            {b.block}
+          </text>
+        </g>
+      ))
+    }
+    <line class="axis" x1={pad.left} x2={W - pad.right} y1={y(0)} y2={y(0)} />
+    <text class="tick" x={pad.left + plotW / 2} y={H - 4} text-anchor="middle">
+      block size
+    </text>
+  </svg>
+  <details>
+    <summary class="mono">Show as a table</summary>
+    <table class="mono">
+      <thead>
+        <tr><th>Block size</th><th>Runs that fit</th><th>Invalid, without</th><th>Invalid, with</th></tr>
+      </thead>
+      <tbody>
+        {
+          bars.map((b) => (
+            <tr><td>{b.block}</td><td>{b.runs}</td><td>{b.failedOff}</td><td>{b.failedOn}</td></tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </details>
+  <figcaption class="mono">
+    From the thesis benchmark: 15 images, 17 block sizes, both modes, three runs
+    each. Runs where the message didn't fit are left out; they fail the same way
+    in both modes, and nothing fits above block size {blocks.at(-1)}.
+  </figcaption>
+</figure>
+
+<style>
+  .chart {
+    --bar: #c96a4b;
+    margin: 2.5rem 0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .chart {
+      --bar: #3f9e88;
+    }
+  }
+
+  .title {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .sub {
+    color: var(--muted);
+    margin-top: 0.25rem;
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: 1rem;
+    overflow: visible;
+  }
+
+  .grid {
+    stroke: var(--hairline);
+    stroke-width: 1;
+  }
+
+  .axis {
+    stroke: var(--muted);
+    stroke-width: 1;
+  }
+
+  .tick {
+    fill: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .label {
+    fill: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .mark {
+    fill: var(--bar);
+    transition: opacity 120ms ease;
+  }
+
+  .zero {
+    stroke: var(--bar);
+    stroke-width: 2;
+  }
+
+  .hit {
+    fill: transparent;
+  }
+
+  .bar:hover .hit {
+    fill: var(--faint);
+    opacity: 0.6;
+  }
+
+  @media (forced-colors: active) {
+    .mark {
+      fill: CanvasText;
+    }
+  }
+
+  details {
+    margin-top: 0.75rem;
+  }
+
+  summary {
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.8125rem;
+  }
+
+  summary:hover {
+    color: var(--accent);
+  }
+
+  table {
+    margin-top: 0.75rem;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    width: 100%;
+  }
+
+  th,
+  td {
+    text-align: right;
+    padding: 0.25rem 0.5rem;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  th:first-child,
+  td:first-child {
+    text-align: left;
+  }
+
+  th {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  figcaption {
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+</style>

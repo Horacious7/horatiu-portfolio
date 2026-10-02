@@ -26,6 +26,8 @@ features:
     body: There is no database. Uploaded images are written to temporary files that are deleted after each response, and keys are never stored.
 ---
 
+import TraceChart from "../../components/TraceChart.astro";
+
 TRACE is my bachelor's thesis at Babeș-Bolyai University, supervised by
 Prof. dr. Septimiu Crivei. The question behind it: if an image is going to be
 passed around, how can you prove later that it is the one you published, and
@@ -67,6 +69,8 @@ message fit in the image produced a valid signature, 396 out of 396, against
 that used to retry around the margins was no longer needed: 0.21 s per image on
 average instead of 0.36 s, and 0.73 s instead of 2.67 s in the slowest case.
 Average image quality stayed around 35 dB PSNR either way.
+
+<TraceChart />
 
 The benchmark behind those numbers ran 15 synthetic images across 17 block
 sizes, with and without the optimization, three times each: 1,530 runs in all.
