@@ -4,9 +4,9 @@ description: Hides an RSA-2048 signature inside an image, invisibly, and later p
 group: Research
 order: 1
 years: "2025–2026"
-role: Bachelor's thesis, designed and built alone
+role: Bachelor's thesis, built alone
 status: Thesis, Babeș-Bolyai University, 2026
-tech: Python · Flask · PyWavelets · OpenCV · cryptography · React · TypeScript
+tech: Python · Flask · PyWavelets · OpenCV · NumPy · React · TypeScript
 featured: true
 links:
   - label: source
@@ -61,14 +61,17 @@ and that padding shifted the embedded bits just enough to break the signature.
 
 My fix, which the thesis calls Resonance Optimization, crops the image to a
 multiple of twice the block size before the transform, so there is no padding
-to go wrong. With it, those 114 failures went to 0 across the same 396 cases,
-and the slowest case went from 2.96 s to 0.65 s, about 4.5 times faster,
-because the fallback loop that used to retry around the margins was no longer
-needed. Average image quality stayed above 34 dB PSNR for the standard block
-sizes.
+to go wrong. With it, those 114 failures went to 0: every case where the
+message fit in the image produced a valid signature, 396 out of 396, against
+282 out of 396 without it. It also made embedding faster, because the fallback
+that used to retry around the margins was no longer needed: 0.21 s per image on
+average instead of 0.36 s, and 0.73 s instead of 2.67 s in the slowest case.
+Average image quality stayed around 35 dB PSNR either way.
 
 The benchmark behind those numbers ran 15 synthetic images across 17 block
-sizes, three times each: 1,530 runs in all.
+sizes, with and without the optimization, three times each: 1,530 runs in all.
+The other failures in it are images too small to carry the payload at large
+block sizes, and those fail the same way in both modes.
 
 ## Choices I'd defend
 

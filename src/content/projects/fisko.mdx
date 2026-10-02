@@ -1,0 +1,70 @@
+---
+title: Fisko
+description: Reads invoices and receipts with AI and turns a month of paperwork into one file an accountant imports straight into SAGA or WinMENTOR.
+group: Products
+order: 1
+years: "2026–present"
+role: Co-built with Robert Beres
+status: Live at fisko.ro
+tech: TypeScript · React · Gemini · Python · OpenCV · AWS Lambda · Terraform
+featured: true
+links:
+  - label: fisko.ro
+    href: https://fisko.ro/en
+features:
+  - title: Reads the documents for you
+    body: Upload a batch of invoices, fiscal receipts and purchase slips as PDFs or photos. The model pulls out the supplier, its tax ID, the document number, dates, net amount, VAT and total, and suggests an expense account with a confidence score.
+  - title: A person signs off on every line
+    body: Each document opens beside an editable form. The totals are checked live (net plus VAT has to equal the total), low-confidence suggestions are flagged, and the whole review runs from the keyboard.
+  - title: Catches the usual mistakes
+    body: Romanian tax IDs are checked with their real checksum, and the same supplier and document number twice in a batch is flagged as a duplicate.
+  - title: Several receipts in one photo
+    body: Photograph a handful of receipts on a desk and they are found and cropped into separate documents, with a manual fallback when the detection gets it wrong. Multi-page PDFs are split one page per document.
+  - title: Exports the accountant's software reads
+    body: One SAGA XML import file for the whole batch, WinMENTOR text files for invoices and receipts, or a plain CSV for anything else.
+  - title: Picks up where you left off
+    body: The batch in progress is saved as you work, so a closed tab or a crashed browser doesn't cost an afternoon of corrections.
+---
+
+Fisko is a product I build with Robert Beres. It is for Romanian accountants,
+who still spend a large part of every month typing receipts and invoices into
+their accounting software by hand.
+
+The software most small firms here run on is SAGA or WinMENTOR. Fisko sits in
+front of it. The accountant drops in a month of documents, the AI reads them,
+the accountant checks each one, and Fisko writes a single import file. Nothing
+is retyped.
+
+## Who did what
+
+We split it cleanly. I built the application: the review screen, the receipt
+detection and cropping, the extraction prompts and schema, and the SAGA,
+WinMENTOR and CSV exports, plus the bilingual landing page. Robert built the
+platform under it: the AWS infrastructure in Terraform, CI/CD, sign-in and
+usage quotas, Stripe billing, and the account area for exporting or deleting
+your data.
+
+## How it works
+
+The extraction runs on AWS Lambda and asks Gemini for a strict JSON schema
+rather than free text, at a low temperature, so every document comes back with
+the same sixteen fields or not at all. The prompt is written as a Romanian
+accountant working from the national chart of accounts, and when it isn't sure
+of an expense account it falls back to the suspense account instead of
+guessing.
+
+Receipt detection is classical computer vision, not a model: a Python service
+on Lambda runs OpenCV edge detection at several sensitivities, keeps the shapes
+that look like receipts, and merges the overlaps.
+
+The exports were the part that needed the most care. An import file that SAGA
+or WinMENTOR rejects is worse than no file at all, so each format follows the
+vendor's documented structure, escapes every special character, and never
+leaves a numeric field empty. The WinMENTOR format was checked against a real
+installation.
+
+## Where it stands
+
+Fisko is live at fisko.ro, with a free trial of five documents and monthly
+plans. It is early. There are no customer numbers to quote yet, and suggestions
+tailored to each client's own history are the next thing to build.
